@@ -1,0 +1,137 @@
+import streamlit as st
+import pandas as pd
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+def clean_title(title):
+    title = re.sub("[^a-zA-Z0-9 ]", "", title)
+    return title
+
+def content_based_search(query, vectorizer, tfidf, movies):
+    query_vec = vectorizer.transform([re.sub("[^a-zA-Z0-9 ]", "", query)])
+    similarity = cosine_similarity(query_vec, tfidf).flatten()
+    indices = np.argpartition(similarity, -5)[-5:]
+    results = movies.iloc[indices].iloc[::-1]
+    return results
+
+def collaborative_based_search(query, movies, ratings):
+    movie_id = movies[movies["title"].str.contains(query, case=False)].iloc[0]["movieId"]
+
+    similar_users = ratings[(ratings["movieId"] == movie_id) & (ratings["rating"] > 4)]["userId"].unique()
+    similar_user_recs = ratings[(ratings["userId"].isin(similar_users)) & (ratings["rating"] > 4)]["movieId"]
+    similar_user_recs = similar_user_recs.value_counts() / len(similar_users)
+
+    similar_user_recs = similar_user_recs[similar_user_recs > .10]
+    all_users = ratings[(ratings["movieId"].isin(similar_user_recs.index)) & (ratings["rating"] > 4)]
+    all_user_recs = all_users["movieId"].value_counts() / len(all_users["userId"].unique())
+
+    rec_percentages = pd.concat([similar_user_recs, all_user_recs], axis=1)
+    rec_percentages.columns = ["similar", "all"]
+    rec_percentages["score"] = rec_percentages["similar"] / rec_percentages["all"]
+    rec_percentages = rec_percentages.sort_values("score", ascending=False)
+
+    return rec_percentages.head(10).merge(movies, left_index=True, right_on="movieId")[["score", "title", "genres"]]
+
+def store_rating(value, search_method, query, user_ratings, ratings_file):
+    print(value,"data :)")
+    if value is not None and value > 0:
+        new_rating = pd.DataFrame({"method": [search_method], "query": [query], "rating": [value]})
+        user_ratings = pd.concat([user_ratings, new_rating], ignore_index=True)
+        user_ratings.to_csv(ratings_file, index=False)
+    return user_ratings
+
+def display_results(results):
+    if not results.empty:
+        for index, row in results.iterrows():
+            st.write(f"{row['title']} - {row['genres']}")
+
+# def main():
+
+movies = pd.read_csv("../Dataset/Movie_lens/ml-25m/movies.csv")
+
+movies["clean_title"] = movies["title"].apply(clean_title)
+
+vectorizer = TfidfVectorizer(ngram_range=(1, 2))
+tfidf = vectorizer.fit_transform(movies["clean_title"])
+
+ratings = pd.read_csv('../Dataset/Movie_lens/ml-25m/ratings.csv')
+
+ratings_file = "ratings.csv"
+try:
+    user_ratings = pd.read_csv(ratings_file)
+except FileNotFoundError:
+    user_ratings = pd.DataFrame(columns=["method", "query", "rating"])
+
+st.markdown('<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">', unsafe_allow_html=True)
+st.markdown("""
+            <nav class="navbar fixed-top navbar-expand-lg navbar-dark" style="background-color: #3498DB;"> 
+<a class="navbar-brand" target="_blank">Movie Recommandation</a> 
+<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false"
+aria-label="Toggle navigation"> <span class="navbar-toggler-icon"></span> </button>
+<div class="collapse navbar-collapse" id="navbarNav">
+<ul class="navbar-nav">
+    <li class="nav-item active"> <a class="nav-link disabled" href="#">Home <span class="sr-only">(current)</span></a>
+    </li>  
+</ul>
+</div>
+</nav>
+            """, unsafe_allow_html=True)
+
+centered_heading = """
+<div data-stale="false" width="688" class="element-container st-emotion-cache-1v0ltu e1f1d6gn4" data-testid="element-container">
+    <div class="stHeadingContainer" data-testid="stHeading">
+        <div class="stMarkdown" style="width: 688px; text-align: center;">
+            <div data-testid="stMarkdownContainer" class="st-emotion-cache-17b17hr e1nzilvr5" style="width: 688px;">
+                <div class="st-emotion-cache-1629p8f e1nzilvr2">
+                    <h1 id="movie-recommendation-app">
+                        <div data-testid="StyledLinkIconContainer" class="st-emotion-cache-zt5igj e1nzilvr4">
+                            <a href="#movie-recommendation-app" class="st-emotion-cache-1dgmtll e1nzilvr3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 a5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                </svg>
+                            </a>
+                            <span class="st-emotion-cache-10trblm e1nzilvr1">Movie Recommendation App</span>
+                        </div>
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+st.markdown(centered_heading, unsafe_allow_html=True)
+
+st.header("Movie Search")
+query = st.text_input("Enter a movie title", "Toy Story")
+search_method = st.radio("Select Search Method", ["Content-Based", "Collaborative-Based"])
+
+if st.button("Search", use_container_width=True):
+    if search_method == "Content-Based":
+        content_results = content_based_search(query, vectorizer, tfidf, movies)
+        st.subheader("Content-Based Results:")
+        display_results(content_results)
+        
+    elif search_method == "Collaborative-Based":
+        collaborative_results = collaborative_based_search(query, movies, ratings)
+        st.subheader("Collaborative-Based Results:")
+        display_results(collaborative_results)
+
+        # Add a slider for rating with on_change callback
+        rate = st.slider(
+            label="Please rate your experience",
+            min_value=0,
+            max_value=5,
+            value=None,
+            key="rating_slider",
+        )
+        print(st.session_state["rating_slider"])
+        if st.session_state["rating_slider"] > 0:
+            print(st.session_state['rating_slider'])
+            store_rating(st.session_state["rating_slider"], search_method, query, user_ratings, ratings_file)                
+
+# if __name__ == "__main__":
+#     main()
