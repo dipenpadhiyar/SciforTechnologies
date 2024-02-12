@@ -98,15 +98,15 @@ def star_rating(search_method, query, ratings_file):
 
 # def main():
 
-movies = pd.read_csv("../Dataset/Movie_lens/ml-25m/movies.csv")
-# movies = pd.read_csv("project_22-jan/Dataset/Movie_lens/ml-25m/movies.csv")
+# movies = pd.read_csv("../Dataset/Movie_lens/ml-25m/movies.csv")
+movies = pd.read_csv("project_22-jan/Dataset/Movie_lens/ml-25m/movies.csv")
 movies["clean_title"] = movies["title"].apply(clean_title)
 
 vectorizer = TfidfVectorizer(ngram_range=(1, 2))
 tfidf = vectorizer.fit_transform(movies["clean_title"])
 
-ratings = pd.read_csv('../Dataset/Movie_lens/ml-25m/ratings.csv')
-# movies = pd.read_csv("project_22-jan/Dataset/Movie_lens/ml-25m/ratings.csv")
+# ratings = pd.read_csv('../Dataset/Movie_lens/ml-25m/ratings.csv')
+movies = pd.read_csv("project_22-jan/Dataset/Movie_lens/ml-25m/ratings.csv")
 ratings_file = "ratings.csv"
 try:
     user_ratings = pd.read_csv(ratings_file)
