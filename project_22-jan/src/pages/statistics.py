@@ -11,11 +11,11 @@ if 'page' not in st.session_state:
 # Display loading spinner while processing data
 with st.spinner("Loading data..."):   
     # Load MovieLens dataset
-    movies = pd.read_csv("../Dataset/Movie_lens/ml-25m/movies.csv")
-    ratings = pd.read_csv('../Dataset/Movie_lens/ml-25m/ratings.csv')
+    # movies = pd.read_csv("../Dataset/Movie_lens/ml-25m/movies.csv")
+    # ratings = pd.read_csv('../Dataset/Movie_lens/ml-25m/ratings.csv')
 
-    # movies = pd.read_csv("project_22-jan/Dataset/Movie_lens/ml-25m/movies.csv")
-    # ratings = pd.read_csv('project_22-jan/Dataset/Movie_lens/ml-25m/ratings.csv')
+    movies = pd.read_csv("project_22-jan/Dataset/Movie_lens/ml-25m/movies.csv")
+    ratings = pd.read_csv('project_22-jan/Dataset/Movie_lens/ml-25m/ratings.csv')
 
     st.markdown('<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">', unsafe_allow_html=True)
     st.markdown("""
